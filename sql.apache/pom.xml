@@ -1,0 +1,165 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<artifactId>org.oiue.service.sql.apache</artifactId>
+	<packaging>bundle</packaging>
+
+	<name>OIUE service for sql pool impl by apache jdbc pool </name>
+	<description>A bundle that sql pool impl by apache jdbc pool </description>
+	<parent>
+		<groupId>org.oiue.services</groupId>
+		<artifactId>services</artifactId>
+		<version>1.0.0</version>
+	</parent>
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.eclipse.m2e</groupId>
+					<artifactId>lifecycle-mapping</artifactId>
+					<version>1.0.0</version>
+					<configuration>
+						<lifecycleMappingMetadata>
+							<pluginExecutions>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>org.apache.maven.plugins</groupId>
+										<artifactId>maven-dependency-plugin</artifactId>
+										<versionRange>[2.0,)</versionRange>
+										<goals>
+											<goal>copy-dependencies</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+							</pluginExecutions>
+						</lifecycleMappingMetadata>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+		<!-- 把依赖的jar包拷到lib目录下 -->
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-dependencies</id>
+						<phase>initialize</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/lib</outputDirectory>
+							<!-- <outputDirectory>${project.build.directory}/classes/lib</outputDirectory> -->
+							<overWriteReleases>false</overWriteReleases>
+							<overWriteSnapshots>false</overWriteSnapshots>
+							<overWriteIfNewer>true</overWriteIfNewer>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- 打包bundle文件为bundle.jar文件 -->
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<extensions>true</extensions>
+				<configuration>
+					<instructions>
+						<X-bundle-Version>${version}</X-bundle-Version>
+						<Bundle-Activator>${artifactId}.Activator</Bundle-Activator>
+						<!-- <Export-Package>org.oiue.zion.file.upload.core</Export-Package> -->
+						<!-- <Import-Package> org.osgi.framework, com.mapprsoft.zion.log, com.mapprsoft.zion.util, org.oiue.zion.file.upload.core </Import-Package> -->
+						<!-- <Private-Package></Private-Package> -->
+						<!-- <Bundle-SymbolicName>org.oiue.tools.frame</Bundle-SymbolicName> -->
+						<Import-Package>org.oiue.service.log,org.oiue.service.osgi,org.oiue.service.sql,javax.management,javax.sql,javax.naming,javax.net.ssl,javax.net,org.ietf.jgss,org.osgi.framework,org.osgi.service.cm</Import-Package>
+						<Bundle-Name>${name}</Bundle-Name>
+						<Bundle-ManifestVersion>2</Bundle-ManifestVersion>
+						<Bundle-Description>${description}</Bundle-Description>
+						<Bundle-Vendor>www.oiue.org</Bundle-Vendor>
+						<Embed-Transitive>true</Embed-Transitive>
+						<Embed-Dependency>mysql-connector-java,postgresql,commons-dbcp,commons-pool,commons-collections;scope=compile|runtime</Embed-Dependency>
+						<Embed-Directory>lib</Embed-Directory>
+						<Embed-StripGroup>true</Embed-StripGroup>
+					</instructions>
+				</configuration>
+			</plugin>
+			<!-- 打包source文件为jar文件 -->
+			<plugin>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>2.1</version>
+				<configuration>
+					<attach>true</attach>
+					<encoding>UTF-8</encoding>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>compile</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- 将打包的bundle文件拷贝到项目的bundle目录 -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>1.8</version>
+				<executions>
+					<execution>
+						<id>copy-lib-bundle</id>
+						<phase>package</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<tasks>
+								<copy todir="/workspace/git/platform/leauto/bundle">
+									<fileset dir="${basedir}/target">
+										<include name="*.?.jar" />
+									</fileset>
+								</copy>
+							</tasks>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+	<dependencies>
+		<dependency>
+			<groupId>org.oiue.services</groupId>
+			<artifactId>org.oiue.service.sql</artifactId>
+			<version>1.0.0</version>
+		</dependency>
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>5.1.35</version>
+		</dependency>
+		<!-- http://mvnrepository.com/artifact/org.postgresql/postgresql -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<version>9.4.1208.jre7</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-dbcp</groupId>
+			<artifactId>commons-dbcp</artifactId>
+			<version>1.4</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-pool</groupId>
+			<artifactId>commons-pool</artifactId>
+			<version>1.6</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-collections</groupId>
+			<artifactId>commons-collections</artifactId>
+			<version>3.2.1</version>
+		</dependency>
+	</dependencies>
+</project>
