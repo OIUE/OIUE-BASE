@@ -1,0 +1,38 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<artifactId>org.oiue.service.log4j</artifactId>
+
+	<name>OIUE service for log by log4j </name>
+	<description>OIUE service for log by log4j</description>
+
+	<packaging>bundle</packaging>
+	
+	<parent>
+		<groupId>org.oiue.services</groupId>
+		<artifactId>imports</artifactId>
+		<version>1.0.0</version>
+	</parent>
+	<properties>
+		<project.activator>${artifactId}.Activator</project.activator>
+		<project.dependency>log4j,slf4j-api,slf4j-log4j12</project.dependency>
+		<project.import>org.oiue.service.osgi,org.oiue.service.log</project.import>
+		<project.export>org.slf4j</project.export>
+	</properties>
+	<dependencies>
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<version>1.2.17</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>1.7.13</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<version>1.7.13</version>
+		</dependency>
+	</dependencies>
+</project>
