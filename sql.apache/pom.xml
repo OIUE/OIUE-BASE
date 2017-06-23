@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<artifactId>org.oiue.service.sql.apache</artifactId>
 	<packaging>bundle</packaging>
@@ -71,7 +72,8 @@
 						<X-bundle-Version>${version}</X-bundle-Version>
 						<Bundle-Activator>${artifactId}.Activator</Bundle-Activator>
 						<!-- <Export-Package>org.oiue.zion.file.upload.core</Export-Package> -->
-						<!-- <Import-Package> org.osgi.framework, com.mapprsoft.zion.log, com.mapprsoft.zion.util, org.oiue.zion.file.upload.core </Import-Package> -->
+						<!-- <Import-Package> org.osgi.framework, com.mapprsoft.zion.log, com.mapprsoft.zion.util, 
+							org.oiue.zion.file.upload.core </Import-Package> -->
 						<!-- <Private-Package></Private-Package> -->
 						<!-- <Bundle-SymbolicName>org.oiue.tools.frame</Bundle-SymbolicName> -->
 						<Import-Package>org.oiue.service.log,org.oiue.service.osgi,org.oiue.service.sql,javax.management,javax.sql,javax.naming,javax.net.ssl,javax.net,org.ietf.jgss,org.osgi.framework,org.osgi.service.cm</Import-Package>
@@ -144,7 +146,7 @@
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
-			<version>9.4.1208.jre7</version>
+			<version>42.1.1</version>
 		</dependency>
 		<dependency>
 			<groupId>commons-dbcp</groupId>

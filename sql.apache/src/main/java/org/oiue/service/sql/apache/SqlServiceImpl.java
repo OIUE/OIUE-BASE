@@ -32,6 +32,7 @@ public class SqlServiceImpl implements SqlService {
 	private Logger logger;
 	private Hashtable<String, BasicDataSource> dataSources = new Hashtable<String, BasicDataSource>();
 
+	private String sql ="select dsp.name,dsp.value from fm_data_source ds,fm_data_source_parameters dsp where ds.data_source_id=dsp.data_source_id and name =?";
 	public SqlServiceImpl(LogService logService) {
 		logger = logService.getLogger(this.getClass());
 	}
@@ -88,22 +89,22 @@ public class SqlServiceImpl implements SqlService {
 		}
 	}
 
-    @SuppressWarnings("rawtypes")
-    @Override
-    public void unregisterAll() {
-        if (logger.isInfoEnabled()) {
-            logger.info("unregister all data source ");
-        }
-        for (Iterator iterator = dataSources.values().iterator(); iterator.hasNext();) {
-            BasicDataSource ds = (BasicDataSource) iterator.next();
-            try {
-                ds.close();
-            } catch (SQLException e) {
-                logger.error("data source close error", e);
-            }
-            iterator.remove();
-        }
-    }
+	@SuppressWarnings("rawtypes")
+	@Override
+	public void unregisterAll() {
+		if (logger.isInfoEnabled()) {
+			logger.info("unregister all data source ");
+		}
+		for (Iterator iterator = dataSources.values().iterator(); iterator.hasNext();) {
+			BasicDataSource ds = (BasicDataSource) iterator.next();
+			try {
+				ds.close();
+			} catch (SQLException e) {
+				logger.error("data source close error", e);
+			}
+			iterator.remove();
+		}
+	}
 	@Override
 	public String[] listDataSource() {
 		return dataSources.keySet().toArray(new String[0]);
@@ -489,7 +490,7 @@ public class SqlServiceImpl implements SqlService {
 				if (logger.isDebugEnabled()) {
 					logger.debug("call return one record value");
 				}
-//				cstmt.registerOutParameter(paramCount, oracle.jdbc.OracleTypes.CURSOR);
+				//				cstmt.registerOutParameter(paramCount, oracle.jdbc.OracleTypes.CURSOR);
 			} else {
 				if (logger.isDebugEnabled()) {
 					logger.debug("call return nothing");
@@ -595,17 +596,52 @@ public class SqlServiceImpl implements SqlService {
 		}
 		DataSource dataSource = dataSources.get(alias);
 		if (dataSource == null) {
-			throw new RuntimeException("get connect alias is not exits, alias = " + alias);
-		} else {
+			Connection conn = null;
+			ResultSet rset = null;
+			PreparedStatement pstmt = null;
 			try {
-				Connection conn = dataSource.getConnection();
-				if (logger.isDebugEnabled()) {
-					logger.debug("get connect successed");
+				dataSource=dataSources.get(0);
+				BasicDataSource ds = new BasicDataSource();
+				conn = dataSource.getConnection();
+				pstmt = conn.prepareStatement(sql);
+				pstmt.setObject( 1, alias);
+				rset = pstmt.executeQuery();
+				while (rset.next()) {
+					ds.addConnectionProperty(rset.getString("name"), rset.getString("value"));
 				}
-				return conn;
-			} catch (SQLException e) {
-				throw new RuntimeException("get connect alias error，alias="+alias+","+e.getMessage(), e);
+				dataSources.put(alias, ds);
+				dataSource=ds;
+			}catch (Throwable e) {
+				throw new RuntimeException("get connect alias is not exits, alias = " + alias,e);
+			} finally {
+				if (rset != null) {
+					try {
+						rset.close();
+					} catch (Exception e) {
+					}
+				}
+				if (pstmt != null) {
+					try {
+						pstmt.close();
+					} catch (Exception e) {
+					}
+				}
+				if (conn != null) {
+					try {
+						conn.close();
+					} catch (Exception e) {
+					}
+				}
 			}
+		}
+		try {
+			Connection conn = dataSource.getConnection();
+			if (logger.isDebugEnabled()) {
+				logger.debug("get connect successed");
+			}
+			return conn;
+		} catch (SQLException e) {
+			throw new RuntimeException("get connect alias error，alias="+alias+","+e.getMessage(), e);
 		}
 	}
 
