@@ -9,7 +9,7 @@
 	<parent>
 		<groupId>org.oiue.services</groupId>
 		<artifactId>services</artifactId>
-		<version>1.0.0</version>
+		<version>1.0.1</version>
 	</parent>
 	<build>
 		<pluginManagement>
@@ -133,9 +133,14 @@
 	</build>
 	<dependencies>
 		<dependency>
+			<groupId>org.neo4j.driver</groupId>
+			<artifactId>neo4j-java-driver</artifactId>
+			<version>1.0.3</version>
+		</dependency>
+		<dependency>
 			<groupId>org.oiue.services</groupId>
 			<artifactId>org.oiue.service.sql</artifactId>
-			<version>1.0.0</version>
+			<version>${sql.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>mysql</groupId>

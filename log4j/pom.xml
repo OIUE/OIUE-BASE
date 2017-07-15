@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<artifactId>org.oiue.service.log4j</artifactId>
 
@@ -6,18 +7,44 @@
 	<description>OIUE service for log by log4j</description>
 
 	<packaging>bundle</packaging>
-	
+
 	<parent>
 		<groupId>org.oiue.services</groupId>
 		<artifactId>imports</artifactId>
-		<version>1.0.0</version>
+		<version>1.0.1</version>
 	</parent>
 	<properties>
 		<project.activator>${artifactId}.Activator</project.activator>
-		<project.dependency>log4j,slf4j-api,slf4j-log4j12</project.dependency>
+		<project.dependency>log4j,slf4j-api,slf4j-log4j12,cglib,asm</project.dependency>
 		<project.import>org.oiue.service.osgi,org.oiue.service.log</project.import>
-		<project.export>org.slf4j</project.export>
+		<project.export>org.slf4j,net.sf.cglib.proxy,net.sf.cglib.core</project.export>
 	</properties>
+	
+	<!--
+		<slf4j.version>1.7.7</slf4j.version>
+		<log4j.version>2.1</log4j.version>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-slf4j-impl</artifactId>
+			<version>${log4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+			<version>${log4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<version>${log4j.version}</version>
+		</dependency>
+
+	-->
 	<dependencies>
 		<dependency>
 			<groupId>log4j</groupId>
@@ -33,6 +60,16 @@
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-log4j12</artifactId>
 			<version>1.7.13</version>
+		</dependency>
+		<dependency>
+			<groupId>cglib</groupId>
+			<artifactId>cglib</artifactId>
+			<version>3.2.5</version>
+		</dependency>
+		<dependency>
+			<groupId>org.ow2.asm</groupId>
+			<artifactId>asm</artifactId>
+			<version>5.2</version>
 		</dependency>
 	</dependencies>
 </project>
