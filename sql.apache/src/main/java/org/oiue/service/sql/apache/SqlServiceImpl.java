@@ -1,7 +1,9 @@
 package org.oiue.service.sql.apache;
 
+import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.math.BigDecimal;
 import java.sql.CallableStatement;
 import java.sql.Clob;
 import java.sql.Connection;
@@ -9,6 +11,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Dictionary;
@@ -26,18 +29,21 @@ import org.oiue.service.log.LogService;
 import org.oiue.service.log.Logger;
 import org.oiue.service.sql.SqlService;
 import org.oiue.service.sql.SqlServiceResult;
+import org.oiue.tools.StatusResult;
+import org.oiue.tools.exception.OIUEException;
 
 @SuppressWarnings("serial")
 public class SqlServiceImpl implements SqlService {
 	private Logger logger;
 	private Hashtable<String, BasicDataSource> dataSources = new Hashtable<String, BasicDataSource>();
-
-	private String sql ="select dsp.name,dsp.value from fm_data_source ds,fm_data_source_parameters dsp where ds.data_source_id=dsp.data_source_id and name =?";
+	private Hashtable<String, Dictionary> connconf = new Hashtable<>();
+	
+	private String sql = "select dsp.name,dsp.value from fm_data_source ds,fm_data_source_parameters dsp where ds.data_source_id=dsp.data_source_id and name =?";
+	
 	public SqlServiceImpl(LogService logService) {
 		logger = logService.getLogger(this.getClass());
 	}
-
-	@SuppressWarnings("rawtypes")
+	
 	@Override
 	public boolean registerDataSource(String alias, Dictionary params) {
 		if (logger.isInfoEnabled()) {
@@ -49,6 +55,7 @@ public class SqlServiceImpl implements SqlService {
 			}
 			return false;
 		}
+		connconf.put(alias, params);
 		BasicDataSource ds = new BasicDataSource();
 		try {
 			ds.setDriverClassName(params.get("driverClassName").toString());
@@ -59,7 +66,8 @@ public class SqlServiceImpl implements SqlService {
 			ds.setMaxIdle(Integer.valueOf(params.get("maxIdle").toString()));
 			ds.setMaxWait(Integer.valueOf(params.get("maxWait").toString()));
 			ds.setValidationQuery(params.get("validationQuery").toString());
-
+			ds.setRemoveAbandoned(true);
+			ds.setLogAbandoned(true);
 			if (logger.isInfoEnabled()) {
 				logger.debug("data source params = " + ds);
 			}
@@ -73,7 +81,7 @@ public class SqlServiceImpl implements SqlService {
 		}
 		return true;
 	}
-
+	
 	@Override
 	public void unregister(String alias) {
 		if (logger.isInfoEnabled()) {
@@ -88,7 +96,7 @@ public class SqlServiceImpl implements SqlService {
 			dataSources.remove(alias);
 		}
 	}
-
+	
 	@SuppressWarnings("rawtypes")
 	@Override
 	public void unregisterAll() {
@@ -105,11 +113,12 @@ public class SqlServiceImpl implements SqlService {
 			iterator.remove();
 		}
 	}
+	
 	@Override
 	public String[] listDataSource() {
 		return dataSources.keySet().toArray(new String[0]);
 	}
-
+	
 	@Override
 	public SqlServiceResult insertUpdateOrDelete(String alias, String sql, List<Object> params) {
 		if (logger.isDebugEnabled()) {
@@ -123,13 +132,13 @@ public class SqlServiceImpl implements SqlService {
 			result.setData("can't found data source");
 			return result;
 		}
-
+		
 		Connection conn = null;
 		ResultSet rset = null;
 		PreparedStatement pstmt = null;
 		try {
 			conn = dataSource.getConnection();
-			pstmt = conn.prepareStatement(sql);
+			pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
 			if ((params != null) && (params.size() > 0)) {
 				for (int i = 0; i < params.size(); i++) {
 					Object param = params.get(i);
@@ -141,7 +150,22 @@ public class SqlServiceImpl implements SqlService {
 				}
 			}
 			result.setResult(true);
-			result.setData(pstmt.executeUpdate());
+			
+			ResultSet generatedKeys = pstmt.getGeneratedKeys();
+			
+			if (generatedKeys != null) {
+				Map data = new HashMap<>();
+				data.put("count", pstmt.executeUpdate());
+				try {
+					data.put("root", getResult(generatedKeys));
+				} finally {
+					if (generatedKeys != null)
+						generatedKeys.close();
+					generatedKeys = null;
+				}
+				result.setData(data);
+			} else
+				result.setData(pstmt.executeUpdate());
 			if (logger.isDebugEnabled()) {
 				logger.debug("execute update successed, data = " + result.getData());
 			}
@@ -160,24 +184,67 @@ public class SqlServiceImpl implements SqlService {
 			if (rset != null) {
 				try {
 					rset.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 			if (pstmt != null) {
 				try {
 					pstmt.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 			if (conn != null) {
 				try {
 					conn.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 		}
 	}
-
+	
+	public List<Map> getResult(ResultSet rs) {
+		try {
+			ResultSetMetaData rsmd = rs.getMetaData();
+			List<Map> listMap = new ArrayList<Map>();
+			while (rs.next()) {
+				int sum = rsmd.getColumnCount();
+				Hashtable row = new Hashtable();
+				for (int i = 1; i < sum + 1; i++) {
+					Object value = rs.getObject(i);
+					if ((value instanceof BigDecimal)) {
+						if (((BigDecimal) value).scale() == 0) {
+							value = Long.valueOf(((BigDecimal) value).longValue());
+						} else {
+							value = Double.valueOf(((BigDecimal) value).doubleValue());
+						}
+					} else if ((value instanceof Clob)) {
+						value = clobToString((Clob) value);
+					}
+					// String key = rsmd.getColumnName(i);
+					String key = rsmd.getColumnLabel(i);
+					row.put(key, value == null ? "" : value);
+				}
+				listMap.add(row);
+			}
+			return listMap;
+			
+		} catch (Exception e) {
+			throw new OIUEException(StatusResult._blocking_errors, "", e);
+		}
+	}
+	
+	protected String clobToString(Clob clob) {
+		if (clob == null) {
+			return null;
+		}
+		try {
+			Reader inStreamDoc = clob.getCharacterStream();
+			char[] tempDoc = new char[(int) clob.length()];
+			inStreamDoc.read(tempDoc);
+			inStreamDoc.close();
+			return new String(tempDoc);
+		} catch (IOException | SQLException e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
 	@Override
 	public SqlServiceResult insertUpdateOrDeleteWithClob(String alias, String sql, List<Object> params, HashSet<Integer> clobIndexSet) {
 		if (logger.isDebugEnabled()) {
@@ -191,7 +258,7 @@ public class SqlServiceImpl implements SqlService {
 			result.setData("can't found data source");
 			return result;
 		}
-
+		
 		Connection conn = null;
 		ResultSet rset = null;
 		PreparedStatement pstmt = null;
@@ -230,24 +297,21 @@ public class SqlServiceImpl implements SqlService {
 			if (rset != null) {
 				try {
 					rset.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 			if (pstmt != null) {
 				try {
 					pstmt.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 			if (conn != null) {
 				try {
 					conn.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 		}
 	}
-
+	
 	@Override
 	public SqlServiceResult select(String alias, String sql, List<Object> params) {
 		if (logger.isDebugEnabled()) {
@@ -297,7 +361,7 @@ public class SqlServiceImpl implements SqlService {
 						}
 						arrayRecord.add(sb.toString());
 					} else if (obj instanceof java.math.BigDecimal) {
-						arrayRecord.add(Long.valueOf(obj+""));
+						arrayRecord.add(Long.valueOf(obj + ""));
 					} else {
 						arrayRecord.add(obj);
 					}
@@ -324,24 +388,21 @@ public class SqlServiceImpl implements SqlService {
 			if (rset != null) {
 				try {
 					rset.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 			if (pstmt != null) {
 				try {
 					pstmt.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 			if (conn != null) {
 				try {
 					conn.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 		}
 	}
-
+	
 	@Override
 	public SqlServiceResult selectMap(String alias, String sql, List<Object> params) {
 		if (logger.isDebugEnabled()) {
@@ -373,13 +434,13 @@ public class SqlServiceImpl implements SqlService {
 			}
 			rset = pstmt.executeQuery();
 			ResultSetMetaData metaData = rset.getMetaData();
-
+			
 			int numcols = metaData.getColumnCount();
 			String[] columnLabels = new String[numcols];
 			for (int i = 0; i < numcols; i++) {
 				columnLabels[i] = metaData.getColumnLabel(i + 1).toLowerCase();
 			}
-
+			
 			List<Map<String, Object>> arrayRecords = new ArrayList<Map<String, Object>>();
 			while (rset.next()) {
 				Map<String, Object> record = new HashMap<String, Object>();
@@ -399,13 +460,13 @@ public class SqlServiceImpl implements SqlService {
 						record.put(columnLabels[i - 1], sb.toString());
 					} else if (obj instanceof java.math.BigDecimal) {
 						try {
-							record.put(columnLabels[i - 1], Long.valueOf(obj+""));
+							record.put(columnLabels[i - 1], Long.valueOf(obj + ""));
 						} catch (Throwable e) {
-							logger.warn(e.getMessage(),e);
+							logger.warn(e.getMessage(), e);
 							try {
-								record.put(columnLabels[i - 1], Double.valueOf(obj+""));
+								record.put(columnLabels[i - 1], Double.valueOf(obj + ""));
 							} catch (Throwable e2) {
-								logger.error(e.getMessage()+e2.getMessage(),e2);
+								logger.error(e.getMessage() + e2.getMessage(), e2);
 							}
 						}
 					} else {
@@ -421,12 +482,12 @@ public class SqlServiceImpl implements SqlService {
 			}
 			return result;
 		} catch (SQLException e) {
-			logger.error("execute select sql error,sql="+sql+",params="+params, e);
+			logger.error("execute select sql error,sql=" + sql + ",params=" + params, e);
 			result.setResult(false);
 			result.setData(e.getMessage());
 			return result;
 		} catch (Exception ex) {
-			logger.error("execute select map error,sql="+sql+",params="+params, ex);
+			logger.error("execute select map error,sql=" + sql + ",params=" + params, ex);
 			result.setResult(false);
 			result.setData(ex.getMessage());
 			return result;
@@ -434,24 +495,21 @@ public class SqlServiceImpl implements SqlService {
 			if (rset != null) {
 				try {
 					rset.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 			if (pstmt != null) {
 				try {
 					pstmt.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 			if (conn != null) {
 				try {
 					conn.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 		}
 	}
-
+	
 	@Override
 	public SqlServiceResult call(String alias, String sql, List<Object> params) {
 		if (logger.isDebugEnabled()) {
@@ -479,7 +537,7 @@ public class SqlServiceImpl implements SqlService {
 				sql = sql.substring(0, sql.length() - 1);
 			}
 			cstmt = conn.prepareCall(sql);
-
+			
 			int paramCount = cstmt.getParameterMetaData().getParameterCount();
 			if (flag.equalsIgnoreCase("V")) {
 				if (logger.isDebugEnabled()) {
@@ -490,13 +548,13 @@ public class SqlServiceImpl implements SqlService {
 				if (logger.isDebugEnabled()) {
 					logger.debug("call return one record value");
 				}
-				//				cstmt.registerOutParameter(paramCount, oracle.jdbc.OracleTypes.CURSOR);
+				// cstmt.registerOutParameter(paramCount, oracle.jdbc.OracleTypes.CURSOR);
 			} else {
 				if (logger.isDebugEnabled()) {
 					logger.debug("call return nothing");
 				}
 			}
-
+			
 			if ((params != null) && (params.size() > 0)) {
 				for (int i = 0; i < params.size(); i++) {
 					Object param = params.get(i);
@@ -507,9 +565,9 @@ public class SqlServiceImpl implements SqlService {
 					}
 				}
 			}
-
+			
 			cstmt.execute();
-
+			
 			if (flag.equalsIgnoreCase("V")) {
 				List<Object> arrayRecord = new ArrayList<Object>();
 				arrayRecord.add(cstmt.getObject(paramCount));
@@ -520,10 +578,10 @@ public class SqlServiceImpl implements SqlService {
 				}
 			} else if (flag.equalsIgnoreCase("R")) {
 				rset = (ResultSet) cstmt.getObject(paramCount);
-
+				
 				ResultSetMetaData metaData = rset.getMetaData();
 				int numcols = metaData.getColumnCount();
-
+				
 				List<List<Object>> arrayRecords = new ArrayList<List<Object>>();
 				while (rset.next()) {
 					List<Object> arrayRecord = new ArrayList<Object>();
@@ -542,7 +600,7 @@ public class SqlServiceImpl implements SqlService {
 							}
 							arrayRecord.add(sb.toString());
 						} else if (obj instanceof java.math.BigDecimal) {
-							arrayRecord.add(Long.valueOf(obj+""));
+							arrayRecord.add(Long.valueOf(obj + ""));
 						} else {
 							arrayRecord.add(obj);
 						}
@@ -571,66 +629,60 @@ public class SqlServiceImpl implements SqlService {
 			if (rset != null) {
 				try {
 					rset.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 			if (cstmt != null) {
 				try {
 					cstmt.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 			if (conn != null) {
 				try {
 					conn.close();
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 		}
 	}
-
+	
 	@Override
 	public Connection getConnection(String alias) {
 		if (logger.isDebugEnabled()) {
 			logger.debug("get connect, alias = " + alias);
 		}
-		DataSource dataSource = dataSources.get(alias);
+		BasicDataSource dataSource = dataSources.get(alias);
 		if (dataSource == null) {
 			Connection conn = null;
 			ResultSet rset = null;
 			PreparedStatement pstmt = null;
 			try {
-				dataSource=dataSources.get(0);
+				dataSource = dataSources.get(0);
 				BasicDataSource ds = new BasicDataSource();
 				conn = dataSource.getConnection();
 				pstmt = conn.prepareStatement(sql);
-				pstmt.setObject( 1, alias);
+				pstmt.setObject(1, alias);
 				rset = pstmt.executeQuery();
 				while (rset.next()) {
 					ds.addConnectionProperty(rset.getString("name"), rset.getString("value"));
 				}
 				dataSources.put(alias, ds);
-				dataSource=ds;
-			}catch (Throwable e) {
-				throw new RuntimeException("get connect alias is not exits, alias = " + alias,e);
+				dataSource = ds;
+			} catch (Throwable e) {
+				throw new RuntimeException("get connect alias is not exits, alias = " + alias, e);
 			} finally {
 				if (rset != null) {
 					try {
 						rset.close();
-					} catch (Exception e) {
-					}
+					} catch (Exception e) {}
 				}
 				if (pstmt != null) {
 					try {
 						pstmt.close();
-					} catch (Exception e) {
-					}
+					} catch (Exception e) {}
 				}
 				if (conn != null) {
 					try {
 						conn.close();
-					} catch (Exception e) {
-					}
+					} catch (Exception e) {}
 				}
 			}
 		}
@@ -641,10 +693,10 @@ public class SqlServiceImpl implements SqlService {
 			}
 			return conn;
 		} catch (SQLException e) {
-			throw new RuntimeException("get connect alias error，alias="+alias+","+e.getMessage(), e);
+			throw new OIUEException(StatusResult._conn_error,"get connect alias error，alias=" + alias +",Active="+dataSource.getNumActive()+ "," + e.getMessage(), e);
 		}
 	}
-
+	
 	@Override
 	public DataSource getDataSource(String alias) {
 		return dataSources.get(alias);

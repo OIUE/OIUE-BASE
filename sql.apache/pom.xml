@@ -9,7 +9,7 @@
 	<parent>
 		<groupId>org.oiue.services</groupId>
 		<artifactId>services</artifactId>
-		<version>1.0.1</version>
+		<version>1.1.0-SNAPSHOT</version>
 	</parent>
 	<build>
 		<pluginManagement>
@@ -70,19 +70,19 @@
 				<configuration>
 					<instructions>
 						<X-bundle-Version>${version}</X-bundle-Version>
-						<Bundle-Activator>${artifactId}.Activator</Bundle-Activator>
-						<!-- <Export-Package>org.oiue.zion.file.upload.core</Export-Package> -->
+						<Bundle-Activator>${project.artifactId}.Activator</Bundle-Activator>
+						<Export-Package>org.oiue.service.sql.apache;uses:="javax.sql,org.oiue.service.log,org.oiue.service.osgi,org.oiue.service.sql",org.postgresql.util</Export-Package>
 						<!-- <Import-Package> org.osgi.framework, com.mapprsoft.zion.log, com.mapprsoft.zion.util, 
 							org.oiue.zion.file.upload.core </Import-Package> -->
 						<!-- <Private-Package></Private-Package> -->
 						<!-- <Bundle-SymbolicName>org.oiue.tools.frame</Bundle-SymbolicName> -->
-						<Import-Package>org.oiue.service.log,org.oiue.service.osgi,org.oiue.service.sql,javax.management,javax.sql,javax.naming,javax.net.ssl,javax.net,org.ietf.jgss,org.osgi.framework,org.osgi.service.cm</Import-Package>
+						<Import-Package>org.oiue.service.log,org.oiue.tools.exception,org.oiue.service.osgi,org.oiue.service.sql,javax.management,javax.sql,javax.naming,javax.net.ssl,javax.net,org.ietf.jgss,org.osgi.framework,org.osgi.service.cm</Import-Package>
 						<Bundle-Name>${name}</Bundle-Name>
 						<Bundle-ManifestVersion>2</Bundle-ManifestVersion>
 						<Bundle-Description>${description}</Bundle-Description>
 						<Bundle-Vendor>www.oiue.org</Bundle-Vendor>
 						<Embed-Transitive>true</Embed-Transitive>
-						<Embed-Dependency>mysql-connector-java,postgresql,commons-dbcp,commons-pool,commons-collections;scope=compile|runtime</Embed-Dependency>
+						<Embed-Dependency>mysql-connector-java,postgresql,ojdbc14,commons-dbcp,commons-pool,commons-collections;scope=compile|runtime</Embed-Dependency>
 						<Embed-Directory>lib</Embed-Directory>
 						<Embed-StripGroup>true</Embed-StripGroup>
 					</instructions>
@@ -91,7 +91,6 @@
 			<!-- 打包source文件为jar文件 -->
 			<plugin>
 				<artifactId>maven-source-plugin</artifactId>
-				<version>2.1</version>
 				<configuration>
 					<attach>true</attach>
 					<encoding>UTF-8</encoding>
@@ -106,29 +105,12 @@
 				</executions>
 			</plugin>
 			<!-- 将打包的bundle文件拷贝到项目的bundle目录 -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-antrun-plugin</artifactId>
-				<version>1.8</version>
-				<executions>
-					<execution>
-						<id>copy-lib-bundle</id>
-						<phase>package</phase>
-						<goals>
-							<goal>run</goal>
-						</goals>
-						<configuration>
-							<tasks>
-								<copy todir="/workspace/git/platform/leauto/bundle">
-									<fileset dir="${basedir}/target">
-										<include name="*.?.jar" />
-									</fileset>
-								</copy>
-							</tasks>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
+			<!-- <plugin> <groupId>org.apache.maven.plugins</groupId> <artifactId>maven-antrun-plugin</artifactId> 
+				<version>1.8</version> <executions> <execution> <id>copy-lib-bundle</id> 
+				<phase>package</phase> <goals> <goal>run</goal> </goals> <configuration> 
+				<tasks> <copy todir="/workspace/git/platform/leauto/bundle"> <fileset dir="${basedir}/target"> 
+				<include name="*.?.jar" /> </fileset> </copy> </tasks> </configuration> </execution> 
+				</executions> </plugin> -->
 		</plugins>
 	</build>
 	<dependencies>
@@ -146,6 +128,11 @@
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
 			<version>5.1.35</version>
+		</dependency>
+		<dependency>
+			<groupId>com.oracle</groupId>
+			<artifactId>ojdbc14</artifactId>
+			<version>10.2.0.4.0</version>
 		</dependency>
 		<!-- http://mvnrepository.com/artifact/org.postgresql/postgresql -->
 		<dependency>

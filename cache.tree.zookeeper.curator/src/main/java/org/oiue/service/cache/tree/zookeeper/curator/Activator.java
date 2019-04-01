@@ -1,6 +1,6 @@
 package org.oiue.service.cache.tree.zookeeper.curator;
 
-import java.util.Dictionary;
+import java.util.Map;
 
 import org.oiue.service.cache.tree.CacheTreeService;
 import org.oiue.service.log.LogService;
@@ -10,42 +10,43 @@ import org.oiue.service.osgi.MulitServiceTrackerCustomizer;
 
 public class Activator extends FrameActivator {
 
-    @Override
-    public void start() throws Exception {
-        this.start(new MulitServiceTrackerCustomizer() {
+	@Override
+	public void start() {
+		this.start(new MulitServiceTrackerCustomizer() {
+			CacheTreeServiceImpl cacheTreeService;
+			@Override
+			public void removedService() {
+				cacheTreeService.stop();
+			}
 
-            CacheTreeServiceImpl cacheTreeService;
+			@Override
+			public void addingService() {
+				LogService logService = getService(LogService.class);
 
-            @Override
-            public void removedService() {}
+				Logger log = logService.getLogger(this.getClass());
 
-            @Override
-            public void addingService() {
-                LogService logService = getService(LogService.class);
+				ClassLoader ccl = Thread.currentThread().getContextClassLoader();
+				Thread.currentThread().setContextClassLoader(Runnable.class.getClassLoader());
+				try {
+					try {
+						cacheTreeService = new CacheTreeServiceImpl(logService);
+					} finally {
+						Thread.currentThread().setContextClassLoader(ccl);
+					}
+					registerService(CacheTreeService.class, cacheTreeService);
+				} catch (Throwable e) {
+					log.error(e.getMessage(), e);
+				}
+			}
 
-                Logger log = logService.getLogger(this.getClass());
+			@Override
+			public void updatedConf(Map<String, ?> props) {
+				cacheTreeService.updated(props);
+			}
+		}, LogService.class);
+	}
 
-                ClassLoader ccl = Thread.currentThread().getContextClassLoader();
-                Thread.currentThread().setContextClassLoader(Runnable.class.getClassLoader());
-                try {
-                    try {
-                        cacheTreeService = new CacheTreeServiceImpl(logService);
-                    } finally {
-                        Thread.currentThread().setContextClassLoader(ccl);
-                    }
-                    registerService(CacheTreeService.class, cacheTreeService);
-                } catch (Throwable e) {
-                    log.error(e.getMessage(), e);
-                }
-            }
-
-            @Override
-            public void updated(Dictionary<String, ?> props) {
-                cacheTreeService.updated(props);
-            }
-        }, LogService.class);
-    }
-
-    @Override
-    public void stop() throws Exception {}
+	@Override
+	public void stop() {
+	}
 }
