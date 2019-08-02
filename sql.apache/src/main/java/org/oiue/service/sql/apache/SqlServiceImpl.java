@@ -151,11 +151,12 @@ public class SqlServiceImpl implements SqlService {
 			}
 			result.setResult(true);
 			
-			ResultSet generatedKeys = pstmt.getGeneratedKeys();
+			int count = pstmt.executeUpdate();
 			
+			ResultSet generatedKeys = pstmt.getGeneratedKeys();
 			if (generatedKeys != null) {
 				Map data = new HashMap<>();
-				data.put("count", pstmt.executeUpdate());
+				data.put("count",count );
 				try {
 					data.put("root", getResult(generatedKeys));
 				} finally {
@@ -171,7 +172,7 @@ public class SqlServiceImpl implements SqlService {
 			}
 			return result;
 		} catch (SQLException e) {
-			logger.error("execute update sql error", e);
+			logger.error("execute sql error:{} sql={},params={}", e.getMessage(),sql,params);
 			result.setResult(false);
 			result.setData(e.getMessage());
 			return result;
