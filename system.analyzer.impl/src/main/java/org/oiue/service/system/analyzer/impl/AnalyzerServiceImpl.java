@@ -107,7 +107,7 @@ public class AnalyzerServiceImpl implements AnalyzerService {
 						perl.add(MapUtil.getLong(per, "startTime"));
 						perl.add(MapUtil.getLong(per, "endTime"));
 						perl.add((para instanceof Map) ? JSONUtil.parserToStr((Map) para) : para);
-						perl.add(MapUtil.getString(per, "desc"));
+						perl.add(MapUtil.getString(per, "description"));
 						perl.add(MapUtil.getInt(per, "status"));
 
 						String source = MapUtil.getString(per, "source","user");
